@@ -1,0 +1,38 @@
+# Paths are relative to this file. Prepare a bounded, annotated subset first.
+dataset:
+  path: ../data/processed/opengenome.jsonl
+task: classification
+seed: 42
+window_bp: 128
+batch_size: 4
+output_dir: ../outputs/opengenome
+models:
+  kmer_6:
+    backend: kmer
+    k: 6
+    canonical: true
+  ntv3_650m_pre:
+    backend: ntv3
+    model_name: NTv3_650M_pre
+    layer: 10
+    use_bfloat16: true
+  ntv3_650m_post:
+    backend: ntv3
+    model_name: NTv3_650M_post
+    layer: 10
+    posttrained: true
+    species: human  # EXAMPLE ONLY: use the actual supported species/assembly.
+    use_bfloat16: true
+  evo2_7b:
+    backend: evo2
+    model_name: evo2_7b
+    layer: blocks.28
+    device: cuda:0
+  dnabert2:
+    backend: hf
+    model_id: zhihan1996/DNABERT-2-117M
+    dnabert2: true
+    device: cuda:0
+    max_tokens: 512
+    trust_remote_code: true
+    revision: main  # Replace with a reviewed immutable commit before production.

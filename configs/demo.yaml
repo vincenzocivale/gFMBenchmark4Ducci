@@ -1,0 +1,16 @@
+dataset:
+  path: ../data/examples/toy.jsonl
+task: classification
+seed: 42
+window_bp: 128
+batch_size: 8
+output_dir: ../outputs/demo
+models:
+  kmer_3:
+    backend: kmer
+    k: 3
+    canonical: true
+  kmer_4:
+    backend: kmer
+    k: 4
+    canonical: true

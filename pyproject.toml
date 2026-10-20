@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gfm-benchmark"
+version = "0.1.0"
+description = "Reproducible genomic representation benchmarks"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26,<3", "scikit-learn>=1.4,<2", "PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+hf = ["torch>=2.2", "transformers>=4.28,<5", "einops>=0.7"]
+test = ["pytest>=8"]
+
+[project.scripts]
+gfm-bench = "gfm_benchmark.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gfm_benchmark"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

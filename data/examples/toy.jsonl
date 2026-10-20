@@ -1,0 +1,14 @@
+{"id":"tr1","sequence":"AAAATAAATTAAACAA","label":"0","split":"train","group":"g1"}
+{"id":"tr2","sequence":"TTTATTTAATTAATAC","label":"0","split":"train","group":"g2"}
+{"id":"tr3","sequence":"AATAATTAATAATTGA","label":"0","split":"train","group":"g3"}
+{"id":"tr4","sequence":"CCCGCCCGGCGGCCGC","label":"1","split":"train","group":"g4"}
+{"id":"tr5","sequence":"GGGCGGCGCCGCCCGC","label":"1","split":"train","group":"g5"}
+{"id":"tr6","sequence":"CGCGCCCGCGGCGGCA","label":"1","split":"train","group":"g6"}
+{"id":"va1","sequence":"AAAATTAAATATTACA","label":"0","split":"validation","group":"g7"}
+{"id":"va2","sequence":"ATTTATTAATTTATGA","label":"0","split":"validation","group":"g8"}
+{"id":"va3","sequence":"CCGCCGGGCGCCCGGA","label":"1","split":"validation","group":"g9"}
+{"id":"va4","sequence":"GCGCCCGGCCGCGGCT","label":"1","split":"validation","group":"g10"}
+{"id":"te1","sequence":"TAAATTATAATTAACT","label":"0","split":"test","group":"g11"}
+{"id":"te2","sequence":"ATTAAATTATTAAAGT","label":"0","split":"test","group":"g12"}
+{"id":"te3","sequence":"GCCGGCCCGCGGCCTA","label":"1","split":"test","group":"g13"}
+{"id":"te4","sequence":"CGGCGCCGGCGCCGAT","label":"1","split":"test","group":"g14"}
