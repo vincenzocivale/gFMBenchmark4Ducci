@@ -45,3 +45,58 @@ def kmer_att_mean_pooling(out : torch.Tensor | list[torch.Tensor],
         pooled.append((x * valid).sum(1) / valid.sum(1).clamp(min=1))   # (B, de)
 
     return torch.stack(pooled).mean(0)                                  # (n_channels, B, de) → (B, de)
+
+
+def windows_to_positions(logits : torch.Tensor, nslices : torch.Tensor, length : torch.Tensor,
+                         win : int, step : int) -> torch.Tensor:
+    # logits: (B, S, P, V) per inner window position → (B, L_max, V), averaged over the windows covering each position
+    # window j starts at j*step; non-last windows cover win tokens, the last real window always ends at length
+    B, S, P, V = logits.shape
+    dev = logits.device
+    nslices, length = nslices.to(dev), length.to(dev)
+    L_max = int(length.max())
+
+    j = torch.arange(S, device=dev)
+    i = torch.arange(P, device=dev)
+    pos = j[:, None] * step + i[None, :]                                                # (S, P)
+
+    is_last = j[None, :] == nslices[:, None] - 1                                        # (B, S)
+    win_len = torch.where(is_last, length[:, None] - j[None, :] * step, win)            # (B, S)
+    valid = (j[None, :] < nslices[:, None])[..., None] & (i[None, None, :] < win_len[..., None])   # (B, S, P)
+
+    flat = (torch.arange(B, device=dev)[:, None, None] * L_max + pos[None])[valid]
+    summed = torch.zeros(B * L_max, V, device=dev, dtype=logits.dtype).index_add_(0, flat, logits[valid])
+    count = torch.zeros(B * L_max, device=dev, dtype=logits.dtype).index_add_(0, flat, torch.ones_like(flat, dtype=logits.dtype))
+    return (summed / count.clamp(min=1)[:, None]).view(B, L_max, V)
+
+
+class KmerAttentionMLMHead(nn.Module):
+    # to be stacked after a KmerAttention: kmer_att is only read for de, it is not stored
+    def __init__(self, kmer_att : KmerAttention, slkt_args, vocab_size : int):
+        # slkt_args: the SLKTargs used by the tokenizer for this channel (win_size, overlap)
+        super().__init__()
+        self.win = slkt_args.win_size
+        self.step = slkt_args.win_size - round(slkt_args.overlap * slkt_args.win_size)
+        self.P = self.win + self.win // 2                   # extended last window is < 1.5 * win
+        self.vocab_size = vocab_size
+        self.head = nn.Linear(kmer_att.embed.out_features, self.P * vocab_size)
+
+    def forward(self, out : torch.Tensor, nslices : torch.Tensor, length : torch.Tensor) -> torch.Tensor:
+        # out: (B, S, de) KmerAttention output → (B, L_max, V)
+        logits = self.head(out).view(*out.shape[:2], self.P, self.vocab_size)   # (B, S, P, V)
+        return windows_to_positions(logits, nslices, length, self.win, self.step)
+
+
+class MultiChannelMLMHead(nn.Module):
+    # to be stacked after a MultiChannelKmerAttention: one head per channel, logits averaged over channels
+    def __init__(self, mc_kmer_att : MultiChannelKmerAttention, slkts_args : list, vocab_size : int):
+        super().__init__()
+        if len(slkts_args) != len(mc_kmer_att.channels):
+            raise ValueError(f"got {len(slkts_args)} SLKTargs, model has {len(mc_kmer_att.channels)} channels")
+        self.heads = nn.ModuleList([KmerAttentionMLMHead(ch, a, vocab_size)
+                                    for ch, a in zip(mc_kmer_att.channels, slkts_args)])
+
+    def forward(self, outs : list[torch.Tensor], nslices : list[torch.Tensor], length : torch.Tensor) -> torch.Tensor:
+        # outs: MultiChannelKmerAttention output, list of (B, S_c, de) → (B, L_max, V)
+        logits = [h(o, n, length) for h, o, n in zip(self.heads, outs, nslices)]
+        return torch.stack(logits).mean(0)

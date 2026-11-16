@@ -6,7 +6,7 @@ Full example: [example_kmeratt.py](example_kmeratt.py).
 ## Pipeline
 
 ```
-sequence → SLKT_tokenizer.encode_kmers → SLKTCollator → (MultiChannel)KmerAttention → kmer_att_mean_pooling
+sequence → SLKTCollator (calls SLKT_tokenizer.encode_kmers) → (MultiChannel)KmerAttention → kmer_att_mean_pooling
 ```
 
 | Component | File | Input → output |
@@ -14,7 +14,7 @@ sequence → SLKT_tokenizer.encode_kmers → SLKTCollator → (MultiChannel)Kmer
 | `NTv3Tokenizer` | `ntv3_tokenizer_asHF.py` | HF tokenizer, same vocab and ids as NTv3 |
 | `SLKTargs` | `custom_tokenizers.py` | one channel config: `k`, `win_size`, `overlap` |
 | `SLKT_tokenizer` | `custom_tokenizers.py` | wraps a HF tokenizer; one example → per-channel k-mer frequencies |
-| `SLKTCollator` | `custom_collators.py` | list of examples → padded batch + masks |
+| `SLKTCollator` | `custom_collators.py` | list of raw token lists → encoded, padded batch + masks |
 | `KmerAttention` | `kmer_attention.py` | one channel: `(B, S, nkmers)` → `(B, S, de)` |
 | `MultiChannelKmerAttention` | `kmer_attention.py` | list of channels → list of `(B, S_c, de)` |
 | `kmer_att_mean_pooling` | `kmer_attention.py` | masked mean over windows (and channels) → `(B, de)` |
@@ -22,7 +22,7 @@ sequence → SLKT_tokenizer.encode_kmers → SLKTCollator → (MultiChannel)Kmer
 ## Tokenizer
 
 ```python
-tokenizer = SLKT_tokenizer(NTv3Tokenizer(), [SLKTargs(k=4, win_size=64), SLKTargs(k=3, win_size=256, overlap=0.5)])
+tokenizer = SLKT_tokenizer(NTv3Tokenizer(), [SLKTargs(k=4, win_size=64, overlap=0), SLKTargs(k=3, win_size=256, overlap=0.5)])
 ex = tokenizer.encode_kmers(list("ACGT..."))
 # ex["feats"]:  list, one (nslices, V^k) tensor per channel; each row sums to 1
 # ex["length"]: tokens left after removing PAD and special tokens
@@ -40,7 +40,7 @@ ex = tokenizer.encode_kmers(list("ACGT..."))
 ## Collator
 
 ```python
-loader = DataLoader(dataset, batch_size=64, collate_fn=SLKTCollator())   # dataset returns encode_kmers outputs
+loader = DataLoader(dataset, batch_size=64, collate_fn=SLKTCollator(tokenizer))   # dataset returns raw token lists
 ```
 
 Output (lists have one element per channel):
@@ -52,7 +52,9 @@ Output (lists have one element per channel):
 | `nslices` | list of `(B,)` | real windows per example |
 | `length` | `(B,)` | tokens per example after removals |
 
-Move lists to the device element by element. No MLM masking yet.
+Move lists to the device element by element.
+
+`DataCollatorMLMforKmerAttention(tokenizer, mlm_probability=0.15)` returns the same keys plus `labels` `(B, L_max)` (BERT-style 80/10/10 token masking, `-100` where nothing to predict, in the same coordinates as the windows). It requires `SLKT_tokenizer(..., with_masking=True)`.
 
 ## Model
 

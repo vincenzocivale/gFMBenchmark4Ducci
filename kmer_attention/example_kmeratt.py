@@ -8,15 +8,16 @@ from custom_collators import SLKTCollator
 from kmer_attention import KmerAttention, MultiChannelKmerAttention, kmer_att_mean_pooling
 
 
-class KmerDataset(Dataset):
-    def __init__(self, seqs : list[str], tokenizer : SLKT_tokenizer):
-        self.seqs, self.tokenizer = seqs, tokenizer
+class SeqDataset(Dataset):
+    # returns raw token lists; tokenization happens in the collator
+    def __init__(self, seqs : list[str]):
+        self.seqs = seqs
 
     def __len__(self):
         return len(self.seqs)
 
     def __getitem__(self, i):
-        return self.tokenizer.encode_kmers(list(self.seqs[i]))
+        return list(self.seqs[i])
 
 
 def to_device(batch : dict, device : str) -> dict:
@@ -26,7 +27,7 @@ def to_device(batch : dict, device : str) -> dict:
 def run(channels : list[SLKTargs], seqs : list[str], device : str):
     tokenizer = SLKT_tokenizer(NTv3Tokenizer(), channels)
     nkmers = [len(slkt.kmerfreq.kmers) for slkt in tokenizer.slkts]
-    loader = DataLoader(KmerDataset(seqs, tokenizer), batch_size=4, collate_fn=SLKTCollator())
+    loader = DataLoader(SeqDataset(seqs), batch_size=4, collate_fn=SLKTCollator(tokenizer))
     batch = to_device(next(iter(loader)), device)
 
     if len(channels) == 1:
@@ -48,5 +49,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     seqs = ["".join(random.choice("ACGT") for _ in range(random.randint(200, 2000))) for _ in range(8)]
 
-    run([SLKTargs(k=4, win_size=64)], seqs, device)
-    run([SLKTargs(k=4, win_size=64), SLKTargs(k=3, win_size=256, overlap=0.5)], seqs, device)
+    run([SLKTargs(k=4, win_size=64, overlap=0)], seqs, device)
+    run([SLKTargs(k=4, win_size=64, overlap=0), SLKTargs(k=3, win_size=256, overlap=0.5)], seqs, device)
