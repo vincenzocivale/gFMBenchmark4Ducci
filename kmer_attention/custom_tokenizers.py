@@ -8,29 +8,6 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parent / "../training"))
 from train_utils import mlm_mask
 
-class GenomicTokenizer(PreTrainedTokenizer):
-    def __init__(self):
-        self.vocab = {"[PAD]": 0, "[MASK]": 1, "[UNK]": 2, "+": 3, "-": 4,
-                      "A": 5, "C": 6, "T": 7, "G": 8, "5mC": 9}
-        super().__init__(
-            pad_token="[PAD]",
-            mask_token="[MASK]",
-            unk_token="[UNK]",
-            additional_special_tokens=["+", "-"]
-        )
-
-    def get_vocab(self):
-        return self.vocab
-    
-    def _tokenize(self, text):
-        return list(text.upper())
-
-    def _convert_token_to_id(self, token):
-        return self.vocab.get(token, self.vocab["[UNK]"])
-
-    def _convert_id_to_token(self, index):
-        return {v: k for k, v in self.vocab.items()}.get(index, "[UNK]")
-
 #############################
 class KmerFreq:
     def __init__(self,token_ids : list, k : int):
